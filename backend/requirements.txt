@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+google-cloud-bigquery
+pandas
+scikit-learn
+statsmodels
+ta
+numpy
+pytest
+pytest-mock
+httpx
