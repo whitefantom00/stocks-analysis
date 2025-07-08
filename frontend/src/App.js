@@ -20,6 +20,13 @@ function App() {
   const [historicalData, setHistoricalData] = useState([]);
   const [forecastData, setForecastData] = useState([]);
   const [indicators, setIndicators] = useState(null);
+  const [selectedForecastPeriod, setSelectedForecastPeriod] = useState({ value: 'month', label: '1 Month' });
+
+  const forecastPeriodOptions = [
+    { value: 'week', label: '1 Week' },
+    { value: 'month', label: '1 Month' },
+    { value: 'year', label: '1 Year' },
+  ];
 
   useEffect(() => {
     // Fetch list of all stocks
@@ -55,9 +62,13 @@ function App() {
         .catch(error => {
           console.error('Error fetching indicators:', error);
         });
+    }
+  }, [selectedStock]);
 
-      // Fetch forecast data
-      axios.get(`http://localhost:8000/stocks/${selectedStock.value}/forecast`)
+  useEffect(() => {
+    if (selectedStock && selectedForecastPeriod) {
+      // Fetch forecast data with selected period
+      axios.get(`http://localhost:8000/stocks/${selectedStock.value}/forecast?period=${selectedForecastPeriod.value}`)
         .then(response => {
           setForecastData(response.data);
         })
@@ -65,21 +76,29 @@ function App() {
           console.error('Error fetching forecast data:', error);
         });
     }
-  }, [selectedStock]);
+  }, [selectedStock, selectedForecastPeriod]);
+
+  const allDates = [...new Set([...historicalData.map(data => data.TradingDate), ...forecastData.map(data => data.TradingDate)])].sort();
 
   const chartData = {
-    labels: historicalData.map(data => data.TradingDate),
+    labels: allDates,
     datasets: [
       {
         label: 'Close Price',
-        data: historicalData.map(data => data.ClosePrice),
+        data: allDates.map(date => {
+          const historical = historicalData.find(data => data.TradingDate === date);
+          return historical ? historical.ClosePrice : null;
+        }),
         borderColor: 'rgb(75, 192, 192)',
         tension: 0.1,
         fill: false,
       },
       {
         label: 'Forecasted Close Price',
-        data: forecastData.map(data => data.ForecastedClosePrice),
+        data: allDates.map(date => {
+          const forecast = forecastData.find(data => data.TradingDate === date);
+          return forecast ? forecast.ForecastedClosePrice : null;
+        }),
         borderColor: 'rgb(255, 99, 132)',
         tension: 0.1,
         fill: false,
@@ -95,7 +114,13 @@ function App() {
       },
       title: {
         display: true,
-        text: `Stock Price for ${selectedStock ? selectedStock.label : ''}`,
+        text: `Stock Price for ${selectedStock ? selectedStock.label : ''} with ${selectedForecastPeriod.label} Forecast`,
+      },
+    },
+    scales: {
+      x: {
+        type: 'category',
+        labels: allDates,
       },
     },
   };
@@ -104,14 +129,24 @@ function App() {
     <div style={{ padding: '20px' }}>
       <h1>Stock Analysis Application</h1>
 
-      <div style={{ marginBottom: '20px' }}>
-        <Select
-          options={stocks}
-          onChange={setSelectedStock}
-          placeholder="Select a stock..."
-          isClearable
-          isSearchable
-        />
+      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+        <div style={{ flex: 1 }}>
+          <Select
+            options={stocks}
+            onChange={setSelectedStock}
+            placeholder="Select a stock..."
+            isClearable
+            isSearchable
+          />
+        </div>
+        <div style={{ flex: 1 }}>
+          <Select
+            options={forecastPeriodOptions}
+            onChange={setSelectedForecastPeriod}
+            value={selectedForecastPeriod}
+            placeholder="Select forecast period..."
+          />
+        </div>
       </div>
 
       {selectedStock && (

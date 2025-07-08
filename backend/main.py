@@ -1,8 +1,21 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 import os
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000",  # React app
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize BigQuery client
 # Ensure your GOOGLE_APPLICATION_CREDENTIALS environment variable is set
@@ -119,7 +132,7 @@ from statsmodels.tsa.arima.model import ARIMA
 import numpy as np
 
 @app.get("/stocks/{ticker}/forecast")
-def get_stock_forecast(ticker: str):
+def get_stock_forecast(ticker: str, period: str = "month"):
     query = f"""
         SELECT
             TradingDate,
@@ -149,8 +162,16 @@ def get_stock_forecast(ticker: str):
         model = ARIMA(df['ClosePrice'], order=(5,1,0))
         model_fit = model.fit()
 
-        # Forecast next 30 days
-        forecast_steps = 30
+        # Determine forecast steps based on period
+        if period == "week":
+            forecast_steps = 7
+        elif period == "month":
+            forecast_steps = 30
+        elif period == "year":
+            forecast_steps = 365
+        else:
+            forecast_steps = 30  # Default to month if invalid period
+
         forecast = model_fit.predict(start=len(df), end=len(df) + forecast_steps - 1)
 
         forecast_dates = pd.date_range(start=df.index[-1] + pd.Timedelta(days=1), periods=forecast_steps, freq='D')
